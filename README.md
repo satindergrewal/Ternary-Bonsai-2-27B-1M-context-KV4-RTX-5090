@@ -147,8 +147,12 @@ an abliterated or differently-quantized sibling (we measured that too).
 ## Sources and credits
 
 - PrismML-Eng: the llama.cpp fork (ternary quants, DSpark/dflash, KV rotation
-  and mean-centering bias), the Bonsai 2 model files, and the Bonsai-demo repo.
-  Spec decoding rides upstream DSpark work (ggml-org/llama.cpp PR #25173).
+  and mean-centering bias), the Bonsai 2 model files, and the Bonsai-demo repo
+  (https://huggingface.co/prism-ml/Ternary-Bonsai-2-27B-gguf). Spec decoding
+  rides upstream DSpark work (ggml-org/llama.cpp PR #25173).
+- BoldingBuilds: the abliterated PTQ1_0 GGUF this recipe serves by default
+  (https://huggingface.co/BoldingBuilds/Ternary-Bonsai-2-27B-Abliterated-PTQ1_0-GGUF).
 - ProCreations: the DFlash2 drafter, its patch, and the honest benchmark
-  reports this page re-measures against.
+  reports this page re-measures against
+  (https://huggingface.co/ProCreations/Ternary-Bonsai-2-27B-DFlash2).
 - Recipe, context patch, and measurements: Satinder Grewal.
