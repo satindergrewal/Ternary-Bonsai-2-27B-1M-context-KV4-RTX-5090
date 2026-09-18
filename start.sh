@@ -107,6 +107,12 @@ DRAFT=()
 if [ "$DFLASH2" = "1" ]; then
   DRAFT+=(--spec-type draft-dflash --model-draft "$DEMO/models/dflash2/Bonsai-2-27B-DFlash2-Q8_0.gguf" --spec-draft-n-max 5 -ngld 999)
 fi
+# Tolerant chat template: renders mid-conversation system messages as user
+# turns instead of raising (agentic clients like ZCode inject those).
+TEMPLATE="${TEMPLATE:-$DEMO/models/bonsai2-template-tolerant.jinja}"
+if [ -n "$TEMPLATE" ] && [ -f "$TEMPLATE" ]; then
+  EXTRA+=(--chat-template-file "$TEMPLATE")
+fi
 
 export LD_LIBRARY_PATH=/usr/local/cuda/lib64:${LD_LIBRARY_PATH:-}
 export BONSAI_KV4="$KV4" BONSAI_CTX="$CONTEXT" BONSAI_HOST="$HOST" PORT="$PORT"
