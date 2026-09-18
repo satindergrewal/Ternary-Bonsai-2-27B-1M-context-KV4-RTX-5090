@@ -142,7 +142,35 @@ The committee reviewed seventeen proposals over three sessions and shortlisted
 five for funding: coastal erosion monitoring with low-cost buoys, a longitudinal
 study of adolescent sleep patterns, open-source firmware for insulin pumps,
 drought-resistant wheat trials across four climate zones, and a survey of
-medieval trade routes reconstructed from shipwreck cargo manifests.
+medieval trade routes reconstructed from shipwreck cargo manifests. Reviewers
+praised methodological rigor but asked two teams to clarify their power
+calculations and preregistration plans before the final decision in October.
+
+def rotate(tokens, k):
+    """Rotate a list left by k positions, in place, O(1) extra memory."""
+    n = len(tokens)
+    k %= n
+    _reverse(tokens, 0, k - 1)
+    _reverse(tokens, k, n - 1)
+    _reverse(tokens, 0, n - 1)
+
+The invoice totals 5,400.00 excluding value added tax at the standard rate of
+fifteen percent, giving 6,210.00 payable within thirty days of the statement
+date. Late settlement accrues interest at the rate of one percent per month
+compounded monthly, and disputed line items must be raised in writing within
+seven days of receipt. Payment references must quote the order identifier.
+
+Kubernetes schedules pods onto nodes by filtering nodes that cannot satisfy
+the pod's resource requests and then scoring the remaining nodes by preferred
+criteria such as image locality, inter-pod affinity, and spread across failure
+domains. A pod that requests more memory than any node offers stays Pending,
+and the scheduler retries with exponential backoff while emitting an event.
+
+The recipe serves four: toast the cumin and coriander seeds dry until fragrant,
+then grind them coarse. Fry onions in ghee until deep amber, add garlic, ginger
+and the ground spices, and cook until the oil separates at the edges. Add the
+lamb, brown it well, then pour in enough water to barely cover and simmer
+gently for ninety minutes until the sauce clings to the meat.
 EOT
     "$KBIN" -m "$GGUF" -f "$CORPUS" -o "$BIAS" -ngl 99 -c 512 || { rm -f "$CORPUS"; echo "calibration FAILED"; exit 1; }
     rm -f "$CORPUS"
