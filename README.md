@@ -3,8 +3,9 @@
 A serving recipe for the ternary hybrid Bonsai 2 27B (PQ2_0 or PTQ1_0) with a
 true 1M-token per-request window, a q4_0 KV cache with mean-centering bias,
 and vision, on one 32GB card. This is a recipe, not a model release: the model
-files are the official PrismML GGUFs with 4 bytes of header metadata patched
-locally. No weights are modified anywhere in this repo.
+files are the official [PrismML GGUFs](https://huggingface.co/prism-ml/Ternary-Bonsai-2-27B-gguf)
+with 4 bytes of header metadata patched locally. No weights are modified
+anywhere in this repo.
 
 ## Testing status: spot-checked, not rigorously evaluated
 
@@ -49,8 +50,11 @@ patching. Keep the rope flags honest afterwards:
 
 ## Quick start
 
-1. Get the official demo running: `PrismML-Eng` publishes a `Bonsai-demo`
-   repo with prebuilt binaries and `setup.sh`. The prebuilt binary targets
+1. Get the official demo running:
+   [PrismML-Eng/Bonsai-demo](https://github.com/PrismML-Eng/Bonsai-demo)
+   ships prebuilt binaries and a `setup.sh` (models:
+   [prism-ml/Ternary-Bonsai-2-27B-gguf](https://huggingface.co/prism-ml/Ternary-Bonsai-2-27B-gguf)).
+   The prebuilt binary targets
    CUDA 12.8; on a CUDA 13 box either add the cu12 wheels as a shim
    (`uv pip install nvidia-cuda-runtime-cu12 nvidia-cublas-cu12`, symlink
    `libcudart.so.12`, `libcublas.so.12`, `libcublasLt.so.12` into
@@ -77,7 +81,10 @@ patching. Keep the rope flags honest afterwards:
    ```
 
 4. Copy `serve/start.sh`, `serve/stop.sh` and `serve/model-info.py` next to
-   the demo repo (or edit the paths) and:
+   the demo repo (or edit the paths). The default model this recipe serves is
+   the [abliterated PTQ1_0 GGUF by
+   BoldingBuilds](https://huggingface.co/BoldingBuilds/Ternary-Bonsai-2-27B-Abliterated-PTQ1_0-GGUF)
+   (the base PQ2_0 works with the same flags), then:
 
    ```bash
    ./start.sh                    # default: abliterated PTQ1_0, 1M, KV4, alias
@@ -113,8 +120,10 @@ Full numbers and the measurement commands: [docs/BENCH.md](docs/BENCH.md).
 
 ## DFlash2 speculative decoding: measured, parked
 
-ProCreations published a DFlash2 drafter adapted to this target. We applied
-their patch (it applies cleanly to the prism branch), rebuilt, and measured:
+[ProCreations published a DFlash2
+drafter](https://huggingface.co/ProCreations/Ternary-Bonsai-2-27B-DFlash2)
+adapted to this target. We applied their patch (it applies cleanly to the
+prism branch), rebuilt, and measured:
 
 | config | acceptance | decode |
 |---|---:|---:|
@@ -146,10 +155,11 @@ an abliterated or differently-quantized sibling (we measured that too).
 
 ## Sources and credits
 
-- PrismML-Eng: the llama.cpp fork (ternary quants, DSpark/dflash, KV rotation
-  and mean-centering bias), the Bonsai 2 model files, and the Bonsai-demo repo
-  (https://huggingface.co/prism-ml/Ternary-Bonsai-2-27B-gguf). Spec decoding
-  rides upstream DSpark work (ggml-org/llama.cpp PR #25173).
+- PrismML-Eng: the [llama.cpp fork](https://github.com/PrismML-Eng/llama.cpp)
+  (ternary quants, DSpark/dflash, KV rotation and mean-centering bias), the
+  Bonsai 2 model files, and the
+  [Bonsai-demo repo](https://github.com/PrismML-Eng/Bonsai-demo). Spec
+  decoding rides upstream DSpark work (ggml-org/llama.cpp PR #25173).
 - BoldingBuilds: the abliterated PTQ1_0 GGUF this recipe serves by default
   (https://huggingface.co/BoldingBuilds/Ternary-Bonsai-2-27B-Abliterated-PTQ1_0-GGUF).
 - ProCreations: the DFlash2 drafter, its patch, and the honest benchmark
