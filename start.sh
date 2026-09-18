@@ -39,11 +39,23 @@ set -u
 cd "$(dirname "$0")"
 
 # ---- config: .env, else .env.sample, else baked defaults -------------------
+# Caller exports win over the file, including explicit empties (ABLIT= ./start.sh).
+load_env() {
+  [ -f "$1" ] || return 0
+  while IFS= read -r line || [ -n "$line" ]; do
+    case "$line" in ''|\#*) continue ;; esac
+    case "$line" in *=*) ;; *) continue ;; esac
+    k="${line%%=*}"; v="${line#*=}"
+    case "$k" in *[!A-Za-z0-9_]*|"") continue ;; esac
+    v="${v%\\"}"; v="${v#\\\"}"
+    if [ -z "${!k+x}" ]; then export "$k=$v"; fi
+  done < "$1"
+}
 if [ -f .env ]; then
-  set -a; . ./.env; set +a
+  load_env .env
 elif [ -f .env.sample ]; then
   echo "(no .env found - using .env.sample defaults; cp .env.sample .env to customize)"
-  set -a; . ./.env.sample; set +a
+  load_env .env.sample
 fi
 ABLIT="${ABLIT:-1}"
 CONTEXT="${CONTEXT:-1048576}"
