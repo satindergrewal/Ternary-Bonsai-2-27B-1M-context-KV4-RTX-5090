@@ -71,7 +71,8 @@ patching. Keep the rope flags honest afterwards:
    The native build was ~10% faster in our measurements (130.8 vs 119 t/s
    shallow decode) and removes the shim entirely.
 
-2. Patch every GGUF you intend to serve at 1M (see above).
+2. Fetch and patch the model in one step (`./download.sh`), or patch an
+   existing file yourself (see above).
 
 3. Build the KV bias once per model file (it is quant-specific; re-run it
    when you switch quants):
@@ -80,34 +81,30 @@ patching. Keep the rope flags honest afterwards:
    ./scripts/make_kv_bias.sh
    ```
 
-4. Copy the `serve/` folder somewhere convenient (or set `DEMO` in the
-   variant), then pick a variant like a recipe file:
+4. Configure once, then serve:
 
    ```bash
-   ./start.sh                    # default variant: 1m-ablit
-   ./start.sh 1m-base            # base PQ2_0 at 1M
-   ./start.sh 262k-base-4lane    # native 262K, four concurrent lanes
-   ./start.sh CHECK 900k-dflash2 # preview any variant without touching the serve
+   cp .env.sample .env
+   # edit: ABLIT=1 serves the [abliterated PTQ1_0 GGUF by BoldingBuilds]
+   # (https://huggingface.co/BoldingBuilds/Ternary-Bonsai-2-27B-Abliterated-PTQ1_0-GGUF),
+   # ABLIT=0 serves the base PQ2_0. CONTEXT sets the window; the yarn rope
+   # scale is derived automatically. Every knob carries its measured notes.
+   ./start.sh        # start, poll to READY, print model + ctx
+   ./start.sh CHECK  # show resolved config without touching a running serve
    ./stop.sh
    ```
 
-   Variants live in `serve/variants/*.env` - copy one to make your own. The
-   default serves the [abliterated PTQ1_0 GGUF by
-   BoldingBuilds](https://huggingface.co/BoldingBuilds/Ternary-Bonsai-2-27B-Abliterated-PTQ1_0-GGUF);
-   `ABLIT=0` switches to the base PQ2_0. Every knob (`CONTEXT`, `KV4`,
-   `DFLASH2`, `HOST`, `PORT`, `PARALLEL`, `MODEL`, `ALIAS`, `DEMO`) is a
-   plain line in the variant file.
+   Every value can be overridden per invocation, Mia-style:
+   `CONTEXT=262144 PARALLEL=4 ./start.sh`.
 
-## Variants and what they set
+## Known-good serving profiles (measured 2026-09-18)
 
-| shipped variant | ABLIT | CONTEXT | KV4 | DFLASH2 | PARALLEL |
-|---|---|---:|---|---|---:|
-| `1m-ablit` (default) | 1 | 1048576 | 1 | 0 | 1 |
-| `1m-base` | 0 | 1048576 | 1 | 0 | 1 |
-| `900k-dflash2` | 1 | 921600 | 1 | 1 | 1 |
-| `262k-base-4lane` | 0 | 262144 | 0 | 0 | 4 |
-
-What the knobs do:
+| profile | .env | measured |
+|---|---|---|
+| daily driver (default) | `ABLIT=1 CONTEXT=1048576 KV4=1 PARALLEL=1` | 132 t/s decode shallow, 30.7 / 32.6 GiB idle |
+| base at 1M | `ABLIT=0 CONTEXT=1048576 KV4=1 PARALLEL=1` | 130.8 t/s decode shallow, 32.0 / 32.6 GiB idle |
+| DFlash2 experiment | `ABLIT=1 CONTEXT=921600 KV4=1 DFLASH2=1` | net-negative on this GPU (see below) |
+| multi-agent 4-lane | `ABLIT=0 CONTEXT=262144 KV4=0 PARALLEL=4` | stock model behavior, no patch needed |
 
 | knob | effect |
 |---|---|
@@ -156,16 +153,21 @@ drafter overhead eats the winnings. `DFLASH2=1 ./start.sh` opts back in at
 
 Also worth knowing: the slot-context cap and this patch are llama.cpp-level
 behavior, so the same 4-byte trick applies to other GGUFs whose native
-context you want to exceed with yarn. Their drafter compatibility, however,
-is target-specific - a drafter trained for one checkpoint will not speed up
-an abliterated or differently-quantized sibling (we measured that too).
+context you want to exceed with yarn. Drafter transferability is a separate
+question: we measured the abliterated PTQ1_0 and the base PQ2_0 at identical
+acceptance, so the drafter-target mismatch here is a runtime issue, not a
+weights issue - do not assume any drafter transfers until you measure its
+acceptance on your exact stack.
 
 ## Repo map
 
 | path | contents |
 |---|---|
+| `.env.sample` | every knob with its measured notes; copy to `.env` |
+| `start.sh` / `stop.sh` | idempotent serve start (health poll, config CHECK) / clean stop |
+| `download.sh` | fetch the target GGUF and apply the context patch in one step |
 | `patches/patch-gguf-context.py` | the 4-byte context_length patcher (stdlib only) |
-| `serve/start.sh`, `serve/stop.sh`, `serve/model-info.py` | tested wrappers: idempotent start, health poll, clean stop |
+| `bench/serve_bench.py` | decode / prefill / prompt-cache probe straight from the API timings |
 | `docs/BENCH.md` | full measurements, methodology, DFlash2 matrix |
 
 ## Sources and credits
