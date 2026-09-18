@@ -48,6 +48,7 @@ load_env() {
     k="${line%%=*}"; v="${line#*=}"
     case "$k" in *[!A-Za-z0-9_]*|"") continue ;; esac
     v="${v%\"}"; v="${v#\"}"
+    v="${v//\$HOME/$HOME}"
     if [ -z "${!k+x}" ]; then export "$k=$v"; fi
   done < "$1"
 }
