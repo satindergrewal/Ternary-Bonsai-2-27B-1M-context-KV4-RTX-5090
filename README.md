@@ -80,28 +80,43 @@ patching. Keep the rope flags honest afterwards:
    ./scripts/make_kv_bias.sh
    ```
 
-4. Copy `serve/start.sh`, `serve/stop.sh` and `serve/model-info.py` next to
-   the demo repo (or edit the paths). The default model this recipe serves is
-   the [abliterated PTQ1_0 GGUF by
-   BoldingBuilds](https://huggingface.co/BoldingBuilds/Ternary-Bonsai-2-27B-Abliterated-PTQ1_0-GGUF)
-   (the base PQ2_0 works with the same flags), then:
+4. Copy the `serve/` folder somewhere convenient (or set `DEMO` in the
+   variant), then pick a variant like a recipe file:
 
    ```bash
-   ./start.sh                    # default: abliterated PTQ1_0, 1M, KV4, alias
-   BONSAI_GGUF=/abs/path.gguf BONSAI_DISPLAY="name" ./start.sh
+   ./start.sh                    # default variant: 1m-ablit
+   ./start.sh 1m-base            # base PQ2_0 at 1M
+   ./start.sh 262k-base-4lane    # native 262K, four concurrent lanes
+   ./start.sh CHECK 900k-dflash2 # preview any variant without touching the serve
    ./stop.sh
    ```
 
-## Flags that matter
+   Variants live in `serve/variants/*.env` - copy one to make your own. The
+   default serves the [abliterated PTQ1_0 GGUF by
+   BoldingBuilds](https://huggingface.co/BoldingBuilds/Ternary-Bonsai-2-27B-Abliterated-PTQ1_0-GGUF);
+   `ABLIT=0` switches to the base PQ2_0. Every knob (`CONTEXT`, `KV4`,
+   `DFLASH2`, `HOST`, `PORT`, `PARALLEL`, `MODEL`, `ALIAS`, `DEMO`) is a
+   plain line in the variant file.
 
-| flag / env | effect |
+## Variants and what they set
+
+| shipped variant | ABLIT | CONTEXT | KV4 | DFLASH2 | PARALLEL |
+|---|---|---:|---|---|---:|
+| `1m-ablit` (default) | 1 | 1048576 | 1 | 0 | 1 |
+| `1m-base` | 0 | 1048576 | 1 | 0 | 1 |
+| `900k-dflash2` | 1 | 921600 | 1 | 1 | 1 |
+| `262k-base-4lane` | 0 | 262144 | 0 | 0 | 4 |
+
+What the knobs do:
+
+| knob | effect |
 |---|---|
-| `BONSAI_KV4=1` | q4_0 KV cache, auto-loads the mean-centering bias. Without it, 1M KV is 64 GiB and will not fit |
-| `BONSAI_CTX=1048576` | the window; requires the patched GGUF |
-| `--yarn-orig-ctx 262144 --rope-scale 4` | rope extrapolation past the 262K native context |
-| `--parallel 1` | one conversation gets the whole 1M. A second request during a long prefill gets a 503. Drop this for 4 x 262K lanes instead |
-| `--alias NAME` | clean model id in the API (llama-server otherwise reports the full file path) |
-| `DFLASH2=1` | opt-in speculative decoding, clamps context to 900K. Measured net-negative on this GPU (see below) |
+| `ABLIT` | 1 = abliterated PTQ1_0 (BoldingBuilds), 0 = base PQ2_0 (PrismML); the API alias follows |
+| `CONTEXT` | the window; above 262144 requires the patched GGUF; the yarn rope scale is derived automatically (1048576 -> x4.0) |
+| `KV4` | 1 = q4_0 KV cache with the mean-centering bias. Without it, 1M KV is 64 GiB and will not fit |
+| `DFLASH2` | opt-in speculative decoding; forces CONTEXT <= 921600 for VRAM. Measured net-negative on this GPU (see below) |
+| `PARALLEL` | 1 = one conversation owns the whole context (a second request during a long prefill gets a 503); 4 = four 262K lanes |
+| `MODEL` / `ALIAS` | explicit overrides (any GGUF path; clean API id instead of the file path) |
 
 ## Results (2026-09-18, RTX 5090)
 

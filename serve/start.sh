@@ -1,14 +1,21 @@
 #!/bin/bash
-# Bonsai-2 27B serve wrapper. Config via serve.env (see serve.env.example).
-# ./start.sh            start (no-op if already running)
-# ./start.sh CHECK      print resolved config and exit
-# ./stop.sh             stop
+# Bonsai-2 27B serve wrapper - picks a variant like a recipe file.
+#   ./start.sh               default variant (1m-ablit)
+#   ./start.sh <variant>     e.g. 1m-base, 900k-dflash2, 262k-base-4lane
+#   ./start.sh CHECK [v]     print resolved config, touch nothing
+#   ./stop.sh                stop the server
+# Variants live in serve/variants/<name>.env (copy one to make your own).
 set -u
 cd "$(dirname "$0")"
 
-# ---- config ----
-if [ -f serve.env ]; then set -a; . ./serve.env; set +a; fi
-ABLIT="${ABLIT:-1}"
+VARIANT="${1:-1m-ablit}"
+if [ "$VARIANT" = "CHECK" ]; then
+  VARIANT="${2:-1m-ablit}"; MODE=check
+fi
+VFILE="variants/$VARIANT.env"
+[ -f "$VFILE" ] || { echo "unknown variant: $VARIANT (have: $(ls variants/ | sed 's/\.env$//' | tr '\n' ' '))"; exit 2; }
+set -a; . "./$VFILE"; set +a
+
 CONTEXT="${CONTEXT:-1048576}"
 KV4="${KV4:-1}"
 DFLASH2="${DFLASH2:-0}"
@@ -17,23 +24,22 @@ PORT="${PORT:-8013}"
 PARALLEL="${PARALLEL:-1}"
 DEMO="${DEMO:-$HOME/Bonsai-demo}"
 
-if [ -n "${MODEL:-}" ]; then
-  GGUF="$MODEL"
-elif [ "$ABLIT" = "1" ]; then
-  GGUF="$DEMO/models/bonsai2-gguf/27B/Ternary-Bonsai-2-27B-Abliterated-PTQ1_0.gguf"
+if [ "${ABLIT:-1}" = "1" ]; then
+  GGUF="${MODEL:-$DEMO/models/bonsai2-gguf/27B/Ternary-Bonsai-2-27B-Abliterated-PTQ1_0.gguf}"
+  DEF_ALIAS="Bonsai-2-27B-Ablit"
 else
-  GGUF="$DEMO/models/bonsai2-gguf/27B/Ternary-Bonsai-2-27B-PQ2_0.gguf"
+  GGUF="${MODEL:-$DEMO/models/bonsai2-gguf/27B/Ternary-Bonsai-2-27B-PQ2_0.gguf}"
+  DEF_ALIAS="Bonsai-2-27B"
 fi
-if [ -n "${ALIAS:-}" ]; then ALIAS="${ALIAS}"; elif [ "$ABLIT" = "1" ]; then ALIAS="Bonsai-2-27B-Ablit"; else ALIAS="Bonsai-2-27B"; fi
+ALIAS="${ALIAS:-$DEF_ALIAS}"
 
-# DFlash2 is opt-in and measured net-negative on a 5090 (docs/BENCH.md);
-# the drafter needs ~2 GiB, so clamp context when it is enabled.
 if [ "$DFLASH2" = "1" ] && [ "$CONTEXT" -gt 921600 ]; then
   CONTEXT=921600
 fi
 
-if [ "${1:-}" = "CHECK" ]; then
+if [ "${MODE:-}" = "check" ]; then
   SCALE=$(awk "BEGIN{if ($CONTEXT > 262144) printf \"%.4f\", $CONTEXT/262144; else printf \"1\"}")
+  echo "variant:    $VARIANT"
   echo "model:      $GGUF"
   echo "alias:      $ALIAS"
   echo "context:    $CONTEXT (yarn scale $SCALE)"
@@ -43,12 +49,11 @@ if [ "${1:-}" = "CHECK" ]; then
 fi
 
 if curl -s -m 3 "localhost:$PORT/health" 2>/dev/null | grep -q ok; then
-  echo "ALREADY-RUNNING (./stop.sh first to change config)"
+  echo "ALREADY-RUNNING (./stop.sh first to change variant)"
   exit 0
 fi
 [ -f "$GGUF" ] || { echo "GGUF not found: $GGUF"; exit 2; }
 
-EXTRA=()
 EXTRA+=(-m "$GGUF")
 YARN=()
 if [ "$CONTEXT" -gt 262144 ]; then
@@ -68,11 +73,11 @@ setsid nohup ./scripts/start_llama_server.sh \
   ${YARN[@]+"${YARN[@]}"} --parallel "$PARALLEL" \
   --alias "$ALIAS" ${EXTRA[@]+"${EXTRA[@]}"} ${DRAFT[@]+"${DRAFT[@]}"} \
   > "$HOME/bonsai-serve.log" 2>&1 < /dev/null &
-echo "launching ctx=$CONTEXT model=$([ "$ABLIT" = "1" ] && echo ablit || echo base) draft=$([ "$DFLASH2" = "1" ] && echo on || echo off) (log: ~/bonsai-serve.log) ..."
+echo "launching variant=$VARIANT ctx=$CONTEXT draft=$([ "$DFLASH2" = "1" ] && echo on || echo off) (log: ~/bonsai-serve.log) ..."
 for i in $(seq 1 30); do
   if curl -s -m 3 "localhost:$PORT/health" 2>/dev/null | grep -q ok; then
     echo "READY after ~${i}0s"
-    python3 "$(dirname "$0")/model-info.py"
+    PORT="$PORT" python3 "$(dirname "$0")/model-info.py"
     exit 0
   fi
   if ! pgrep -f "start_llama_server.sh|bin/cuda/llama-server" >/dev/null 2>&1; then
